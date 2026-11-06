@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.3] - 2026-11-06
+
+### Added
+
+- **Injection Reservoir**: With an Injection Reservoir in inventory, the Coatings tab offers an install button on melee weapons that deal piercing damage. The weapon can then be loaded with an injury poison and prompts to inject it after a hit, just like an injection weapon. Its multiple attack penalty is 1 worse while the reservoir is installed. The reservoir can be removed again when nothing is loaded.
+
 ## [3.7.2] - 2026-10-23
 
 ### Fixed
