@@ -90,6 +90,58 @@ describe('weapon injection attack prompts', () => {
     expect(ChatMessage.create.mock.calls[0][0].content).toContain('Giant%20Centipede%20Venom');
   });
 
+  test('successful attack with a loaded Injection Reservoir weapon posts an inject save prompt', async () => {
+    const actor = {
+      id: 'actor-1',
+      uuid: 'Actor.actor-1',
+      name: 'Alchemist',
+      type: 'character',
+      getFlag: jest.fn((_moduleId, key) => (key === 'weaponInjections'
+        ? {
+          'weapon-1': {
+            poisonName: 'Giant Centipede Venom',
+            weaponName: 'Shortsword',
+            afflictionData: { name: 'Giant Centipede Venom', type: 'poison', traits: ['injury', 'poison'] },
+          },
+        }
+        : {})),
+    };
+    const weapon = {
+      id: 'weapon-1',
+      uuid: 'Item.weapon-1',
+      name: 'Shortsword',
+      parent: actor,
+      flags: { 'pf2e-afflictioner': { injectionReservoir: true } },
+      system: {
+        traits: { value: [] },
+        damage: { damageType: 'piercing' },
+      },
+    };
+    const target = { id: 'target-1', name: 'Ogre' };
+
+    global.canvas = { tokens: { get: jest.fn(id => (id === 'target-1' ? target : null)) } };
+    global.fromUuid = jest.fn(async uuid => {
+      if (uuid === 'Item.weapon-1') return weapon;
+      if (uuid === 'Scene.scene.Token.target-1') return { id: 'target-1' };
+      return null;
+    });
+
+    await onCreateChatMessage({
+      flags: {
+        pf2e: {
+          context: {
+            type: 'attack-roll',
+            outcome: 'success',
+            target: { token: 'Scene.scene.Token.target-1' },
+          },
+          origin: { uuid: 'Item.weapon-1' },
+        },
+      },
+    });
+
+    expect(ChatMessage.create.mock.calls[0][0].content).toContain('pf2e-afflictioner-inject-weapon-poison');
+  });
+
   test('coated unlinked token attack looks up coating on the token document instead of the base actor', async () => {
     const baseActor = {
       id: 'actor-1',

@@ -87,6 +87,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       addCoating: AfflictionManager.addCoating,
       removeInjection: AfflictionManager.removeInjection,
       addInjection: AfflictionManager.addInjection,
+      installInjectionReservoir: AfflictionManager.installInjectionReservoir,
+      removeInjectionReservoir: AfflictionManager.removeInjectionReservoir,
       openPoisonItem: AfflictionManager.openPoisonItem,
       saveSourceImmunityBypassRule: AfflictionManager.saveSourceImmunityBypassRule,
       openSourceRuleAffliction: AfflictionManager.openSourceRuleAffliction,
@@ -483,6 +485,7 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
       if (weapons.length) {
         const actorUuid = WeaponCoatingService._getActorReference(actor);
         const entry = { actorId: actor.id, actorUuid, tokenId: controlledToken.id, actorName: controlledToken.name || actor.name, weapons: [] };
+        const hasFreeReservoir = !!actor.isOwner && WeaponCoatingService._getAvailableInjectionReservoirCount(actor) > 0;
         for (const weapon of weapons) {
           const coating = WeaponCoatingStore.getCoating(storageTarget, weapon.id);
           const injection = WeaponCoatingStore.getInjection(storageTarget, weapon.id);
@@ -495,6 +498,8 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
             damageType: WeaponCoatingService._getWeaponDamageType(weapon),
             canCoat: ['piercing', 'slashing'].includes(WeaponCoatingService._getWeaponDamageType(weapon)),
             hasInjectionTrait: WeaponCoatingService._isInjectionWeapon(weapon),
+            hasInjectionReservoir: WeaponCoatingService._hasInjectionReservoir(weapon),
+            canInstallInjectionReservoir: hasFreeReservoir && WeaponCoatingService._canFitInjectionReservoir(weapon),
             isCoated: !!coating,
             poisonName: coating?.poisonName || null,
             poisonItemUuid: coating?.poisonItemUuid || null,
@@ -1210,6 +1215,39 @@ export class AfflictionManager extends foundry.applications.api.HandlebarsApplic
     }
 
     ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.WEAPON_COATING.COATED', { weaponName, poisonName: finalAfflictionData.name }));
+    this.render({ force: true });
+  }
+
+  static async installInjectionReservoir(_event, button) {
+    const target = await AfflictionManager._resolveCoatingTarget(button);
+    const actor = WeaponCoatingService._getActorFromTarget(target);
+    const weapon = actor?.items?.get(button.dataset.weaponId);
+    if (!weapon) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ACTOR_NOT_FOUND'));
+      return;
+    }
+
+    const installed = await WeaponCoatingService.installInjectionReservoir(actor, weapon);
+    if (!installed) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_RESERVOIR_UNAVAILABLE'));
+      return;
+    }
+
+    ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_RESERVOIR_INSTALLED', { weaponName: weapon.name }));
+    this.render({ force: true });
+  }
+
+  static async removeInjectionReservoir(_event, button) {
+    const target = await AfflictionManager._resolveCoatingTarget(button);
+    const actor = WeaponCoatingService._getActorFromTarget(target);
+    const weapon = actor?.items?.get(button.dataset.weaponId);
+    if (!weapon) {
+      ui.notifications.warn(game.i18n.localize('PF2E_AFFLICTIONER.WEAPON_COATING.ACTOR_NOT_FOUND'));
+      return;
+    }
+
+    await WeaponCoatingService.removeInjectionReservoir(weapon);
+    ui.notifications.info(game.i18n.format('PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_RESERVOIR_REMOVED', { weaponName: weapon.name }));
     this.render({ force: true });
   }
 

@@ -6,6 +6,9 @@ import { FeatsService } from './FeatsService.js';
 import { AfflictionService } from './AfflictionService.js';
 
 const K = 'PF2E_AFFLICTIONER.WEAPON_COATING';
+const INJECTION_RESERVOIR_SLUG = 'injection-reservoir';
+const INJECTION_RESERVOIR_RULE_SLUG = 'injection-reservoir-map';
+const INJECTION_RESERVOIR_FLAG = `flags.${MODULE_ID}.injectionReservoir`;
 
 export class WeaponCoatingService {
   static _getActorReference(actor) {
@@ -1015,7 +1018,55 @@ export class WeaponCoatingService {
   }
 
   static _isInjectionWeapon(weapon) {
-    return this._getWeaponTraits(weapon).includes('injection');
+    return this._getWeaponTraits(weapon).includes('injection') || this._hasInjectionReservoir(weapon);
+  }
+
+  static _hasInjectionReservoir(weapon) {
+    return !!(weapon?.hasInjectionReservoir || weapon?.flags?.[MODULE_ID]?.injectionReservoir);
+  }
+
+  /** Injection Reservoir usage: a non-injection melee weapon that deals piercing damage. */
+  static _canFitInjectionReservoir(weapon) {
+    if (!weapon || weapon.system?.range || this._isInjectionWeapon(weapon)) return false;
+    return this._getWeaponDamageType(weapon) === 'piercing' ||
+      this._getWeaponTraits(weapon).includes('versatile-p');
+  }
+
+  static _getAvailableInjectionReservoirCount(actor) {
+    let available = 0;
+    for (const item of actor?.items ?? []) {
+      if (item.system?.slug === INJECTION_RESERVOIR_SLUG) available += item.system?.quantity ?? 1;
+      else if (this._hasInjectionReservoir(item)) available -= 1;
+    }
+    return Math.max(available, 0);
+  }
+
+  static async installInjectionReservoir(actor, weapon) {
+    if (!this._canFitInjectionReservoir(weapon)) return false;
+    if (this._getAvailableInjectionReservoirCount(actor) < 1) return false;
+
+    await weapon.update({
+      [INJECTION_RESERVOIR_FLAG]: true,
+      'system.rules': [
+        ...(weapon.system?.rules ?? []),
+        {
+          key: 'FlatModifier',
+          slug: INJECTION_RESERVOIR_RULE_SLUG,
+          selector: '{item|id}-attack',
+          label: `${K}.INJECTION_RESERVOIR_NAME`,
+          value: -1,
+          predicate: [{ or: ['map:increases:1', 'map:increases:2'] }],
+        },
+      ],
+    });
+    return true;
+  }
+
+  static async removeInjectionReservoir(weapon) {
+    await weapon.update({
+      [INJECTION_RESERVOIR_FLAG]: false,
+      'system.rules': (weapon.system?.rules ?? []).filter(rule => rule.slug !== INJECTION_RESERVOIR_RULE_SLUG),
+    });
   }
 
   static async _chooseDoublePoisonSaveType(firstPoison, secondPoison) {
@@ -1385,6 +1436,7 @@ export class WeaponCoatingService {
           weaponId: weapon.id,
           weaponName: weapon.name,
           traits: weapon.system?.traits?.value || [],
+          hasInjectionReservoir: this._hasInjectionReservoir(weapon),
           damageType: this._getWeaponDamageType(weapon),
           img: weapon.img || 'icons/svg/sword.svg'
         });

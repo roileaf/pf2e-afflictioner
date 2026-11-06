@@ -513,7 +513,8 @@ async function handleAttackRoll(_message, flags) {
   const injection = injectionRecord.data;
   if (
     injection &&
-    WeaponCoatingService._isInjectionWeapon(weapon) &&
+    (WeaponCoatingService._isInjectionWeapon(weapon) ||
+      WeaponCoatingService._isInjectionWeapon(actor.items?.get?.(injectionRecord.weaponId))) &&
     (outcome === DEGREE_OF_SUCCESS.SUCCESS || outcome === DEGREE_OF_SUCCESS.CRITICAL_SUCCESS)
   ) {
     await postInjectionHitPrompt(actor, weapon, injection, flags, gmWhisper, injectionRecord.weaponId, storageTarget);

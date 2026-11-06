@@ -237,6 +237,9 @@
                   </button>
                   {{/each}}
                 {{/if}}
+                {{#if hasInjectionReservoir}}
+                  <span class="weapon-injection-label" data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_RESERVOIR_TOOLTIP'}}"><i class="fas fa-syringe"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_RESERVOIR_NAME"}}</span>
+                {{/if}}
                 {{#if isInjectionLoaded}}
                   <span class="weapon-injection-label" data-tooltip="{{injectionTooltip}}"><i class="fas fa-syringe"></i> {{injectionName}}</span>
                   {{#if injectionItemUuid}}
@@ -324,6 +327,22 @@
                       </div>
                     {{/if}}
                   {{/if}}
+                {{/if}}
+                {{#if canInstallInjectionReservoir}}
+                  <button type="button" class="injection-apply-btn" data-action="installInjectionReservoir"
+                          data-actor-id="{{actorId}}" data-actor-uuid="{{actorUuid}}" data-token-id="{{tokenId}}" data-weapon-id="{{weaponId}}"
+                          data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_RESERVOIR_TOOLTIP'}}">
+                    <i class="fas fa-syringe"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_RESERVOIR_INSTALL"}}
+                  </button>
+                {{/if}}
+                {{#if hasInjectionReservoir}}
+                  {{#unless isInjectionLoaded}}
+                    <button type="button" class="injection-remove-btn" data-action="removeInjectionReservoir"
+                            data-actor-id="{{actorId}}" data-actor-uuid="{{actorUuid}}" data-token-id="{{tokenId}}" data-weapon-id="{{weaponId}}"
+                            data-tooltip="{{localize 'PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_RESERVOIR_REMOVE'}}">
+                      <i class="fas fa-times"></i> {{localize "PF2E_AFFLICTIONER.WEAPON_COATING.INJECTION_RESERVOIR_REMOVE"}}
+                    </button>
+                  {{/unless}}
                 {{/if}}
               </div>
             </div>
