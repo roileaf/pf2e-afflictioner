@@ -2,6 +2,17 @@ import { PF2E_CONDITIONS, DURATION_MULTIPLIERS } from '../constants.js';
 import { getParserLocale, getEnParserLocale, withLocale } from '../locales/parser-locales.js';
 import { DEFAULT_AFFLICTION_ICON } from '../constants.js';
 
+const PAREN_OPEN_MASK = '\uE000';
+const PAREN_CLOSE_MASK = '\uE001';
+const FORMULA_FUNCTIONS = {
+  max: Math.max,
+  min: Math.min,
+  floor: Math.floor,
+  ceil: Math.ceil,
+  round: Math.round,
+  abs: Math.abs,
+};
+
 export class AfflictionParser {
   static extractAfflictionTypeFromDescription(description) {
     const traitsMatch = description.match(/<section[^>]*class="[^"]*traits[^"]*"[^>]*>([\s\S]*?)<\/section>/i);
@@ -52,6 +63,8 @@ export class AfflictionParser {
       if (effectOnly) return effectOnly;
       return { skip: true };
     }
+
+    stages = this.resolveStageDamageFormulas(stages, item);
 
     // If the item is a spell containing an embedded affliction (e.g. Spider Sting → Spider Venom),
     // try to extract the actual affliction name from the description.
@@ -272,24 +285,28 @@ export class AfflictionParser {
 
   static extractStages(description) {
     const locale = getParserLocale();
+    // Hide parentheses inside enrichers (e.g. @Damage[(max(4,@item.rank))d6[void]])
+    // so they are never mistaken for "(1 round)" stage durations.
+    const masked = this.maskEnricherParens(description);
+    const unmask = text => this.unmaskEnricherParens(text);
 
     const stages = [];
     const matchedStageNums = new Set();
 
     // [（(] / [)）] — accept both ASCII and full-width parentheses (used in CN)
-    const htmlInlineRe = new RegExp(`<strong>${locale.stageLabelRe}<\\/strong>${locale.afterLabel}(.+?)[（(]([^)）]+)[)）]([^<]*)`, 'gi');
-    for (const match of description.matchAll(htmlInlineRe)) {
+    const htmlInlineRe = new RegExp(`<strong>${locale.stageLabelRe}<\\/strong>${locale.afterLabel}((?:(?!<\\/p>).)+?)[（(]([^)）]+)[)）]([^<]*)`, 'gi');
+    for (const match of masked.matchAll(htmlInlineRe)) {
       const stageNum = parseInt(match[1]);
-      const effectsBefore = match[2].trim();
-      const durationText = match[3];
-      const effectsAfter = match[4].trim();
+      const effectsBefore = unmask(match[2]).trim();
+      const durationText = unmask(match[3]);
+      const effectsAfter = unmask(match[4]).trim();
       const effects = [effectsBefore, effectsAfter].filter(e => e).join(' ');
       const duration = this.parseDuration(durationText);
 
       stages.push({
         number: stageNum,
         effects: effects,
-        rawText: match[0],
+        rawText: unmask(match[0]),
         duration: duration,
         damage: this.extractDamage(effects),
         ...this.extractStageConditionData(effects),
@@ -302,11 +319,12 @@ export class AfflictionParser {
     }
 
     const htmlParaRe = new RegExp(`<strong>${locale.stageLabelRe}<\\/strong>${locale.afterLabelOpt}([\\s\\S]*?)<\\/p>`, 'gi');
-    for (const match of description.matchAll(htmlParaRe)) {
+    for (const match of masked.matchAll(htmlParaRe)) {
       const stageNum = parseInt(match[1]);
       if (matchedStageNums.has(stageNum)) continue;
 
-      const rawContent = match[2];
+      const maskedContent = match[2];
+      const rawContent = unmask(maskedContent);
       const plainText = this.stripEnrichment(rawContent);
 
       // Inline roll duration: [[/br 2d6 #rounds]] — FoundryVTT syntax, locale-independent.
@@ -316,9 +334,9 @@ export class AfflictionParser {
         duration = this.parseDuration(`${inlineRollMatch[1]} ${inlineRollMatch[2]}`);
       } else {
         // Parenthetical duration — accepts both ASCII () and full-width （） brackets.
-        const parenMatch = rawContent.match(/[（(]([^)）]+)[)）]/);
+        const parenMatch = maskedContent.match(/[（(]([^)）]+)[)）]/);
         if (parenMatch) {
-          duration = this.parseDuration(parenMatch[1].trim());
+          duration = this.parseDuration(unmask(parenMatch[1]).trim());
         } else {
           const forMatch = plainText.match(locale.forDurationPattern);
           duration = forMatch ? this.parseDuration(forMatch[1]) : null;
@@ -328,7 +346,7 @@ export class AfflictionParser {
       stages.push({
         number: stageNum,
         effects: rawContent.trim(),
-        rawText: match[0],
+        rawText: unmask(match[0]),
         duration: duration,
         damage: this.extractDamage(rawContent),
         ...this.extractStageConditionData(rawContent),
@@ -390,9 +408,9 @@ export class AfflictionParser {
     const inlineRollMatch = text.match(/\[\[(?:\/br\s+)?(\d+d\d+(?:[+-]\d+)?)\s+#(\w+)\]\]/i);
     if (inlineRollMatch) return this.parseDuration(`${inlineRollMatch[1]} ${inlineRollMatch[2]}`);
 
-    const parenMatches = [...text.matchAll(/[（(]([^)）]+)[)）]/g)];
+    const parenMatches = [...this.maskEnricherParens(text).matchAll(/[（(]([^)）]+)[)）]/g)];
     const durationMatch = parenMatches
-      .map(match => match[1].trim())
+      .map(match => this.unmaskEnricherParens(match[1]).trim())
       .findLast(value => this.looksLikeDuration(value));
     if (durationMatch) return this.parseDuration(durationMatch);
 
@@ -401,8 +419,9 @@ export class AfflictionParser {
   }
 
   static removeStageDurationText(text) {
-    return text
-      .replace(/[（(]([^)）]+)[)）]/g, (match, content) => this.looksLikeDuration(content.trim()) ? '' : match)
+    const withoutDurations = this.maskEnricherParens(text)
+      .replace(/[（(]([^)）]+)[)）]/g, (match, content) => this.looksLikeDuration(content.trim()) ? '' : match);
+    return this.unmaskEnricherParens(withoutDurations)
       .replace(getParserLocale().forDurationPattern, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -410,6 +429,33 @@ export class AfflictionParser {
 
   static looksLikeDuration(text) {
     return getParserLocale().durationDiceRegex.test(text) || getParserLocale().durationFixedRegex.test(text);
+  }
+
+  /**
+   * Replaces "(" and ")" inside bracketed enrichers (@Damage[...], @Check[...], [[/r ...]])
+   * with private-use placeholders, keeping string length and positions unchanged.
+   */
+  static maskEnricherParens(text) {
+    if (typeof text !== 'string' || !text.includes('[')) return text;
+    let result = '';
+    let depth = 0;
+    for (let index = 0; index < text.length; index++) {
+      const char = text[index];
+      if (char === '[' && (depth > 0 || /@\w+$/.test(text.slice(Math.max(0, index - 32), index)) || text[index + 1] === '[')) {
+        depth += 1;
+      } else if (char === ']' && depth > 0) {
+        depth -= 1;
+      }
+      if (depth > 0 && char === '(') result += PAREN_OPEN_MASK;
+      else if (depth > 0 && char === ')') result += PAREN_CLOSE_MASK;
+      else result += char;
+    }
+    return result;
+  }
+
+  static unmaskEnricherParens(text) {
+    if (typeof text !== 'string') return text;
+    return text.replaceAll(PAREN_OPEN_MASK, '(').replaceAll(PAREN_CLOSE_MASK, ')');
   }
 
   static stripEnrichment(text) {
@@ -571,6 +617,138 @@ export class AfflictionParser {
     }
 
     return contents;
+  }
+
+  /**
+   * Resolves roll-data references (@item.rank, @item.level, ...) and simple math
+   * functions in stage damage formulas against the source item. Formulas that
+   * cannot be fully resolved are kept verbatim so PF2e can still evaluate them.
+   */
+  static resolveStageDamageFormulas(stages, item) {
+    if (!Array.isArray(stages) || !item) return stages;
+    const needsResolution = entry => typeof entry?.formula === 'string' && /[@a-z]{2,}\s*\(|@|\(/i.test(entry.formula);
+    if (!stages.some(stage => stage.damage?.some?.(needsResolution))) return stages;
+
+    const sources = this.getFormulaRollDataSources(item);
+    for (const stage of stages) {
+      if (!Array.isArray(stage.damage)) continue;
+      stage.damage = stage.damage.map(entry => needsResolution(entry)
+        ? { ...entry, formula: this.resolveDamageFormula(entry.formula, ...sources) }
+        : entry);
+    }
+    return stages;
+  }
+
+  static getFormulaRollDataSources(item) {
+    let rollData = null;
+    try {
+      rollData = typeof item.getRollData === 'function' ? item.getRollData() : null;
+    } catch {
+      rollData = null;
+    }
+
+    const rankCandidates = [
+      rollData?.castRank,
+      item.rank,
+      item.system?.location?.heightenedLevel,
+      item.system?.level?.value,
+    ];
+    const rank = rankCandidates.map(Number).find(value => Number.isFinite(value) && value > 0);
+    const level = item.type === 'spell'
+      ? rank
+      : [item.level, item.system?.level?.value].map(Number).find(value => Number.isFinite(value) && value >= 0);
+    const fallback = { item: {} };
+    if (rank !== undefined) fallback.item.rank = rank;
+    if (level !== undefined) fallback.item.level = level;
+    return [rollData || {}, fallback];
+  }
+
+  static resolveDamageFormula(formula, ...sources) {
+    if (typeof formula !== 'string' || !formula.trim()) return formula;
+
+    let unresolved = false;
+    let result = formula.replace(/@([a-z_]\w*(?:\.\w+)*)/gi, (_match, path) => {
+      for (const source of sources) {
+        const value = this.getFormulaValue(source, path);
+        if (value !== undefined && value !== null && value !== '' && Number.isFinite(Number(value))) {
+          return String(Number(value));
+        }
+      }
+      unresolved = true;
+      return _match;
+    });
+    if (unresolved) return formula;
+
+    // Collapse innermost dice-free groups: "(5)" -> "5", "max(4,5-1)" -> "4".
+    const groupRe = /([a-z]+)?\(([^()]*)\)/gi;
+    for (let pass = 0; pass < 50; pass++) {
+      let failed = false;
+      const next = result.replace(groupRe, (match, fn, inner) => {
+        if (!/^[\d.\s+\-*/,]*$/.test(inner)) return match;
+        const args = inner.split(',').map(arg => this.evaluateArithmetic(arg));
+        let value;
+        if (fn) {
+          const handler = FORMULA_FUNCTIONS[fn.toLowerCase()];
+          if (!handler || args.some(arg => !Number.isFinite(arg))) {
+            failed = true;
+            return match;
+          }
+          value = handler(...args);
+        } else {
+          if (args.length !== 1 || !Number.isFinite(args[0])) return match;
+          value = args[0];
+        }
+        if (!Number.isFinite(value)) {
+          failed = true;
+          return match;
+        }
+        return value < 0 ? `(${value})` : String(value);
+      });
+      if (failed) return formula;
+      if (next === result) break;
+      result = next;
+    }
+
+    // Anything function-like left over means we could not fully evaluate it.
+    if (/[a-z]{2,}\s*\(/i.test(result)) return formula;
+    return result;
+  }
+
+  static getFormulaValue(source, path) {
+    let value = source;
+    for (const key of path.split('.')) {
+      if (value === null || value === undefined) return undefined;
+      value = value[key];
+    }
+    return value;
+  }
+
+  /** Evaluates a dice-free arithmetic expression (numbers, + - * /, unary minus). Returns NaN on failure. */
+  static evaluateArithmetic(expression) {
+    const tokens = String(expression).match(/\d+(?:\.\d+)?|[+\-*/]|\S/g) || [];
+    let position = 0;
+    const parseFactor = () => {
+      const token = tokens[position++];
+      if (token === '-') return -parseFactor();
+      if (token === '+') return parseFactor();
+      return token !== undefined && /^\d/.test(token) ? Number(token) : NaN;
+    };
+    const parseTerm = () => {
+      let value = parseFactor();
+      while (tokens[position] === '*' || tokens[position] === '/') {
+        const operator = tokens[position++];
+        const right = parseFactor();
+        value = operator === '*' ? value * right : value / right;
+      }
+      return value;
+    };
+    let value = parseTerm();
+    while (tokens[position] === '+' || tokens[position] === '-') {
+      const operator = tokens[position++];
+      const right = parseTerm();
+      value = operator === '+' ? value + right : value - right;
+    }
+    return position === tokens.length && tokens.length > 0 ? value : NaN;
   }
 
   static parseDamageEnricherContent(content) {
