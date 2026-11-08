@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.4] - 2026-11-08
+
+### Fixed
+
+- **Spell stage damage with dynamic formulas** ([#33](https://github.com/roileaf/pf2e-afflictioner/issues/33)): Afflictions created from spells whose stages scale with rank, such as Curse of Death, now get a working damage button. Formulas like `(max(4,@item.rank-1))d6` resolve against the spell's rank, so Curse of Death at rank 5 rolls 4d6, 8d6 and 12d6. A formula that can't be resolved is passed to PF2e whole instead of being cut apart.
+
 ## [3.7.3] - 2026-11-06
 
 ### Added
