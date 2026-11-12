@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.5] - 2026-11-12
+
+### Fixed
+
+- **False curse detection on items that mention curses generically**: Items such as the Paradigm Cube no longer show an "Apply to Target / Selected Token" button. Text like "saving throws against fear, curse, or visual effects" was being read as a reference to a named curse. Curse references now have to fit inside a single phrase, and wording such as "curse effects" is ignored. Real references like "save against the forbidden cravings curse" still work.
+
 ## [3.7.4] - 2026-11-08
 
 ### Fixed

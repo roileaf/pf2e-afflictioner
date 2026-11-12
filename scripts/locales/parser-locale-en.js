@@ -83,8 +83,10 @@ export const EN_PARSER_LOCALE = {
     /\b(?:exposed|subjected)\s+to\s+(?:the\s+)?(.+?)(?:\s*[（(]|\s*$)/gi,
     /\bcontracts?\s+(?:the\s+)?(.+?)(?:\s*[（(]|\s*$)/gi,
     /\bafflicted\s+with\s+(?:the\s+)?(.+?)(?:\s*[（(]|\s*$)/gi,
-    /\bsaves?\s+against\s+(?:the\s+)?(.+?\bcurse)\b/gi,
-    /\bsaving\s+throw\s+against\s+(?:the\s+)?(.+?\bcurse)\b/gi,
+    // Named curse only: capture stays inside one clause (no sentence/list
+    // punctuation) and generic "curse effects" wording is ignored.
+    /\bsaves?\s+against\s+(?:the\s+)?([^.,;:!?\n]+?\bcurse)\b(?!\s+effects?\b)/gi,
+    /\bsaving\s+throws?\s+against\s+(?:the\s+)?([^.,;:!?\n]+?\bcurse)\b(?!\s+effects?\b)/gi,
   ],
 
   // ── Multiple-exposure patterns ─────────────────────────────────────────────

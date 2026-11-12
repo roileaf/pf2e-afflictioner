@@ -246,6 +246,15 @@ describe('AfflictionParser — English', () => {
     expect(refs[0].toLowerCase()).toBe('forbidden cravings curse');
   });
 
+  test('does not treat generic "save against ... curse effects" text as a referenced curse (Paradigm Cube)', () => {
+    const html =
+      '<p><strong>Mythic Enhancement:</strong> Attempts made by allies to counteract or disbelieve illusions or to save against confusion effects are attempted at mythic proficiency.</p>' +
+      '<p><strong>6—Indigo</strong> (darkness, shadow) Indigo is the color of ignorance and the unknown. <strong>Mythic Enhancement:</strong> Allies\' saving throws against fear, curse, or visual effects are attempted at mythic proficiency.</p>';
+    expect(AfflictionParser.extractReferencedAfflictions(html)).toEqual([]);
+    expect(AfflictionParser.extractReferencedAfflictions('You gain a +1 status bonus to saves against curse effects.')).toEqual([]);
+    expect(AfflictionParser.extractReferencedAfflictions('You gain a +2 bonus to saving throws against fear, curse, or visual effects.')).toEqual([]);
+  });
+
   test('returns empty array when no reference found', () => {
     const text = '1d6 poison damage and sickened 1';
     const refs = AfflictionParser.extractReferencedAfflictions(text);
