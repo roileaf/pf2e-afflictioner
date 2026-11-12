@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.6] - 2026-11-12
+
+### Added
+
+- **`openEditedAfflictions()` API call**: GMs can open the Edited Afflictions window from a macro with `game.modules.get('pf2e-afflictioner').api.openEditedAfflictions()` instead of going through the module settings.
+
+### Fixed
+
+- **Edited afflictions missing from Add Affliction**: The Add Affliction dialog now lists every edited affliction, including ones made by dragging a poison, disease or curse item into Manage Edited Afflictions. Before, it only showed custom afflictions that had no item behind them. The section is now called "Edited & Custom Afflictions".
+
 ## [3.7.5] - 2026-11-12
 
 ### Fixed

@@ -85,7 +85,8 @@ export class AddAfflictionDialog extends foundry.applications.api.HandlebarsAppl
     const allEdits = AfflictionDefinitionStore.getAllEditedDefinitions();
 
     return Object.entries(allEdits)
-      .filter(([, edit]) => !edit?.sourceItemUuid)
+      // Item-based edits are listed too; promptInitialSave re-applies the edit by key.
+      .filter(([key, edit]) => edit && !key.startsWith('addiction-') && !edit.isAddiction)
       .map(([key, edit]) => ({
         key,
         name: edit.name || 'Unknown',

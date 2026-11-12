@@ -23,6 +23,13 @@ export class Pf2eAfflictionerApi {
     new AfflictionManager(options).render(true);
   }
 
+  /** Open the Edited Afflictions window (GM only). */
+  static async openEditedAfflictions() {
+    if (!game.user?.isGM) return null;
+    const { EditedAfflictionsManager } = await import('./managers/EditedAfflictionsManager.js');
+    return new EditedAfflictionsManager().render(true);
+  }
+
   static getAfflictions(token) {
     return AfflictionStore.getAfflictions(token);
   }

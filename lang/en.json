@@ -124,7 +124,7 @@
       "COMPENDIUM_ITEMS": "From Compendiums",
       "NO_ITEMS": "No affliction items found. Drag an item here or use manual entry.",
       "MANUAL_ENTRY": "Manual Entry",
-      "SAVED_CUSTOM_ITEMS": "Saved Custom Afflictions",
+      "SAVED_CUSTOM_ITEMS": "Edited & Custom Afflictions",
       "INITIAL_SAVE_TITLE": "{afflictionName} - Initial Save",
       "INITIAL_SAVE_CONTENT": "{actorName} has been exposed to {afflictionName}!",
       "SAVE_DC": "DC {dc} Fortitude Save",
