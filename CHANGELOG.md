@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.7.7] - 2026-11-15
+
+### Fixed
+
+- **Deprecated chat hook warning**: Chat message buttons now hook into `renderChatMessageHTML` instead of `renderChatMessage`, which Foundry deprecated in v13 and removes in v15. This stops the deprecation warning in the console.
+
 ## [3.7.6] - 2026-11-12
 
 ### Added

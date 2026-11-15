@@ -21,7 +21,7 @@ export function registerAfflictionHooks() {
   Hooks.on('deleteItem', onDeleteItem);
   Hooks.on('updateWorldTime', onWorldTimeUpdate);
   Hooks.on('renderTokenHUD', onRenderTokenHUD);
-  Hooks.on('renderChatMessage', onRenderChatMessage);
+  Hooks.on('renderChatMessageHTML', onRenderChatMessage);
   Hooks.on('preUpdateItem', onPreUpdateItem);
   Hooks.on('getSceneControlButtons', onGetSceneControlButtons);
   Hooks.on('renderSceneControls', onRenderSceneControls);

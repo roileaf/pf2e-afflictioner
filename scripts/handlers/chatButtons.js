@@ -10,9 +10,8 @@ import { MODULE_ID } from '../constants.js';
 const chatLayoutDiagnosticsLogged = new Set();
 const CHAT_LOG_RESET_STYLE_ID = `${MODULE_ID}-chat-log-padding-reset`;
 
-export function onRenderChatMessage(message, html) {
-  const root = html?.jquery ? html[0] : html;
-  if (!root) return;
+export function onRenderChatMessage(message, root) {
+  if (!(root instanceof HTMLElement)) return;
 
   injectConfirmationButton(message, root);
   injectCounteractConfirmButton(message, root);
